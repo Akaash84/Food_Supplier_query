@@ -1,0 +1,14 @@
+(1)Why I designed the screens that way?
+The screens were designed to follow a logical and task-oriented flow from viewing suppliers to raising 
+and tracking queries. Each page focuses on a single key action, ensuring clarity and ease of navigation.
+The color-coded status indicators and consistent layout help QA managers quickly understand query 
+progress at a glance.
+
+
+
+
+(2)How I made it simple for the user?
+The interface was structured with minimal visual clutter, clear typography, and intuitive button placement.
+ Forms use clear field labels, dropdowns, and predefined options to reduce input effort. 
+ Consistent icons, accessible colors, and readable text enhance usability for all users, making the 
+ overall experience smooth and efficient.

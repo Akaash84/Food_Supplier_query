@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<title>Supplier Query Module</title>
+
+	<style>
+	:root{
+		--bg:#f6f7fb; --card:#fff; --fg:#0b1220; --muted:#6b7280;
+		--accent:#0b84ff; --success:#17a34a; --pending:#ffb020; --overdue:#e43f3f;
+		--radius:8px; --gap:12px; --maxw:1080px;
+	}
+	*{box-sizing:border-box}
+	html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Arial;color:var(--fg);background:var(--bg);-webkit-font-smoothing:antialiased}
+	.topbar{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);box-shadow:0 2px 8px rgba(102,126,234,0.15);color:#fff}
+	.logo{font-size:18px;margin:0;font-weight:700;letter-spacing:0.5px}
+	nav .nav-btn{margin-left:8px;padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);cursor:pointer;color:#fff;transition:all 0.2s}
+	nav .nav-btn:hover{background:rgba(255,255,255,0.2)}
+	nav .nav-btn[aria-pressed="true"]{background:#fff;color:#667eea;font-weight:600}
+
+	main{max-width:var(--maxw);margin:20px auto;padding:0 16px}
+	.screen{display:none}
+	.screen.active{display:block;animation:fadeIn 0.3s ease-in}
+	@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+	h2{font-size:22px;margin:0 0 16px;color:#1e293b}
+	.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+	.toolbar input, .toolbar select{padding:10px;border-radius:8px;border:1px solid #d1d5db;background:#fff;font-size:14px;transition:border-color 0.2s}
+	.toolbar input:focus, .toolbar select:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,0.1)}
+	.primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;transition:transform 0.2s,box-shadow 0.2s}
+	.primary:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(102,126,234,0.3)}
+	.secondary{background:#fff;border:1px solid #d1d5db;padding:8px 12px;border-radius:8px;cursor:pointer;transition:all 0.2s}
+	.secondary:hover{border-color:#667eea;color:#667eea}
+	.link{background:transparent;border:none;color:#667eea;cursor:pointer;font-weight:500;transition:color 0.2s}
+	.link:hover{color:#764ba2}
+	.link.small{font-size:13px}
+	.list{list-style:none;padding:0;margin:0;border-radius:8px;overflow:hidden}
+	.row{display:flex;justify-content:space-between;align-items:center;padding:16px;background:var(--card);border-bottom:1px solid #f0f2f5;cursor:pointer;transition:all 0.2s}
+	.row:hover{background:#f8faff;transform:translateX(4px)}
+	.row:nth-child(odd){background:linear-gradient(90deg,#fff,#fcfdff)}
+	.row-left strong{display:block;color:#1e293b;font-size:15px}
+	.muted{color:var(--muted);font-size:13px}
+	.pill{padding:6px 12px;border-radius:999px;font-size:13px;color:#fff;display:inline-flex;align-items:center;gap:4px;font-weight:600}
+	.pill svg{width:14px;height:14px}
+	.pill.pending{background:var(--pending)}
+	.pill.resolved{background:var(--success)}
+	.pill.overdue{background:var(--overdue)}
+	.pill.blue{background:var(--accent)}
+
+	.card{background:var(--card);padding:18px;border-radius:var(--radius);box-shadow:0 2px 8px rgba(10,20,40,0.06);margin-bottom:16px;transition:box-shadow 0.2s}
+	.card:hover{box-shadow:0 4px 16px rgba(10,20,40,0.1)}
+	label{display:block;margin-bottom:12px;font-size:14px;color:#1e293b;font-weight:500}
+	input[type="text"],input[type="date"],select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;font-size:14px;transition:border-color 0.2s,box-shadow 0.2s}
+	input[type="text"]:focus,input[type="date"]:focus,select:focus,textarea:focus{outline:none;border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,0.1)}
+	.row-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+	.form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+	.small{padding:6px 10px;font-size:13px}
+
+	/* Timeline */
+	.timeline{padding:12px}
+	.entry{display:flex;gap:12px;padding:14px 0;border-bottom:1px dashed #eef2f6}
+	.dot{width:14px;height:14px;border-radius:50%;background:#cbd5e1;margin-top:6px;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
+	.dot.supplier{background:#667eea}
+	.entry .meta{font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500}
+	.entry .content{font-size:14px}
+	.status-summary .meta{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+	.sla{margin-top:12px}
+	.sla-bar{height:10px;background:#eef2f6;border-radius:999px;overflow:hidden}
+	.sla-progress{height:100%;background:linear-gradient(90deg,#667eea,#36c6a6);transition:width 0.3s}
+
+	/* small query selector in status screen */
+	.query-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+	.query-item{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:8px;border:1px solid #eef2f6;background:#fff;cursor:pointer;transition:all 0.2s}
+	.query-item:hover{border-color:#cbd5e1}
+	.query-item.active{box-shadow:0 4px 12px rgba(102,126,234,0.12);border-color:rgba(102,126,234,0.3);background:#f8faff}
+
+	.toast{position:fixed;right:20px;bottom:20px;background:#1e293b;color:#fff;padding:12px 16px;border-radius:8px;opacity:0;transform:translateY(12px);transition:all 0.3s;box-shadow:0 4px 12px rgba(0,0,0,0.15)}
+	.toast.show{opacity:1;transform:translateY(0)}
+	.row-actions{display:flex;gap:8px;align-items:center}
+
+	.foot{text-align:center;padding:20px;color:var(--muted);font-size:13px;background:#fff;border-top:1px solid #eef2f6}
+
+	/* Professional touches: card header + priority badges */
+	.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+	.card-header h4{margin:0;font-size:16px;color:#1e293b;font-weight:700}
+	.separator{height:1px;background:#eef2f6;margin:12px 0;border-radius:2px}
+
+	.priority-badge{padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+	.priority-badge svg{width:14px;height:14px}
+	.priority-low{background:linear-gradient(90deg,#d1fae5,#86efac);color:#064e3b}
+	.priority-normal{background:linear-gradient(90deg,#fef3c7,#fcd34d);color:#78350f}
+	.priority-high{background:linear-gradient(90deg,#fecaca,#f87171);color:#7f1d1d}
+
+	/* All queries row */
+	.query-row{display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:8px;background:#fff;border:1px solid #eef2f6;margin-bottom:8px;gap:12px;transition:all 0.2s;cursor:pointer}
+	.query-row:hover{border-color:#cbd5e1;box-shadow:0 2px 8px rgba(0,0,0,0.04);transform:translateX(4px)}
+	.query-meta{font-size:13px;color:var(--muted)}
+	.query-title{font-weight:600;color:#1e293b}
+
+	@media (max-width:720px){
+		.row-grid{grid-template-columns:1fr}
+		.topbar{flex-direction:column;gap:8px;align-items:flex-start}
+		.toolbar{flex-direction:column;align-items:stretch}
+		.card-header{flex-direction:column;align-items:flex-start}
+	}
+	</style>
+</head>
+<body>
+	<header class="topbar">
+		<h1 class="logo">🍽 Supplier Query Module</h1>
+		<nav aria-label="Main">
+			<button id="nav-list" class="nav-btn" aria-pressed="true">Suppliers</button>
+			<button id="nav-raise" class="nav-btn">Raise Query</button>
+			<button id="nav-status" class="nav-btn">Query Status</button>
+		</nav>
+	</header>
+
+	<main>
+		<!-- Supplier List Screen -->
+		<section id="screen-list" class="screen active" aria-labelledby="suppliers-heading">
+			<h2 id="suppliers-heading">📋 Suppliers Overview</h2>
+			<div class="toolbar">
+				<input id="qsearch" type="search" placeholder="🔍 Search suppliers..." aria-label="Search suppliers">
+				<select id="filter-status" aria-label="Filter by status">
+					<option value="all">All statuses</option>
+					<option value="Pending">Pending</option>
+					<option value="Resolved">Resolved</option>
+					<option value="Overdue">Overdue</option>
+				</select>
+				<button id="btn-new" class="primary" title="Raise query">➕ Raise Query</button>
+			</div>
+
+			<ul id="supplier-list" class="list" role="list">
+				<!-- rows populated by JS -->
+			</ul>
+
+			<!-- All Queries card -->
+			<div class="card" aria-labelledby="all-queries-heading">
+				<div class="card-header">
+					<h4 id="all-queries-heading">📂 All Queries</h4>
+					<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+						<select id="all-query-filter" aria-label="Filter queries by status">
+							<option value="all">All statuses</option>
+							<option value="Pending">Pending</option>
+							<option value="Resolved">Resolved</option>
+							<option value="Overdue">Overdue</option>
+						</select>
+						<select id="all-query-priority" aria-label="Filter by priority">
+							<option value="all">All priorities</option>
+							<option value="High">High</option>
+							<option value="Normal">Normal</option>
+							<option value="Low">Low</option>
+						</select>
+					</div>
+				</div>
+				<div id="all-queries" aria-live="polite">
+					<!-- Query rows populated by JS -->
+				</div>
+			</div>
+		</section>
+
+		<!-- Raise New Query Screen -->
+		<section id="screen-raise" class="screen" aria-labelledby="raise-heading">
+			<h2 id="raise-heading">✍️ Raise New Query</h2>
+			<form id="raise-form" class="card" aria-describedby="raise-desc">
+				<p id="raise-desc" class="muted">Quick form — required fields marked *</p>
+
+				<label>Supplier*
+					<select id="field-supplier" required>
+						<!-- populated by JS -->
+					</select>
+				</label>
+
+				<label>Title*
+					<input id="field-title" type="text" placeholder="e.g., Allergen confirmation for SKU123" required>
+				</label>
+
+				<div class="row-grid">
+					<label>Category
+						<select id="field-category">
+							<option>Allergen</option>
+							<option>Certificate</option>
+							<option>Ingredient</option>
+							<option>Other</option>
+						</select>
+					</label>
+
+					<label>Priority
+						<select id="field-priority">
+							<option>Normal</option>
+							<option>High</option>
+							<option>Low</option>
+						</select>
+					</label>
+
+					<label>Response by
+						<input id="field-date" type="date">
+					</label>
+				</div>
+
+				<label>Description*
+					<textarea id="field-desc" rows="5" required placeholder="Add the exact question, include SKU, batch, dates..."></textarea>
+				</label>
+
+				<label class="muted small">Attachments (drag & drop supported)</label>
+				<input id="field-files" type="file" multiple>
+
+				<div class="form-actions">
+					<button type="button" id="save-draft" class="link">💾 Save draft</button>
+					<button type="submit" class="primary">📤 Send Query</button>
+				</div>
+			</form>
+		</section>
+
+		<!-- Query Status Screen -->
+		<section id="screen-status" class="screen" aria-labelledby="status-heading">
+			<h2 id="status-heading">📊 Query Status</h2>
+
+			<aside class="status-summary card" id="status-summary" tabindex="-1" aria-live="polite">
+				<h3 id="status-title" style="margin:0 0 8px;color:#1e293b">—</h3>
+				<div class="meta">
+					<span class="pill pending" id="status-pill" style="display:none">Pending</span>
+					<div class="muted" id="status-meta">Select a supplier and query to view details</div>
+				</div>
+				<div class="sla" id="status-sla" style="display:none">
+					<div class="sla-bar" aria-hidden="true">
+						<div class="sla-progress" style="width:40%"></div>
+					</div>
+				</div>
+			</aside>
+
+			<div style="display:grid;grid-template-columns:1fr 2fr;gap:12px">
+				<div>
+					<div class="card">
+						<h4 style="margin:0 0 10px;color:#1e293b">Queries for <span id="queries-for">—</span></h4>
+						<div id="query-list" class="query-list" aria-live="polite">
+							<!-- query items populated here -->
+						</div>
+						<button id="open-raise-from-status" class="primary" style="width:100%">➕ Raise new query</button>
+					</div>
+				</div>
+
+				<section class="timeline card" aria-label="Query timeline">
+					<div id="timeline-content">
+						<!-- timeline entries populated here -->
+						<p class="muted">No query selected.</p>
+					</div>
+
+					<div class="actions" id="timeline-actions" style="display:none">
+						<textarea id="reply-text" rows="3" placeholder="💬 Write a reply..."></textarea>
+						<div class="action-row" style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+							<button id="attach" class="link">📎 Attach</button>
+							<button id="send-reply" class="primary small">📨 Send Reply</button>
+							<button id="mark-resolved" class="secondary small">✅ Mark Resolved</button>
+						</div>
+					</div>
+				</section>
+			</div>
+		</section>
+	</main>
+
+	<footer class="foot muted">Supplier Query Module — Prototype by SmartFoodSafe · 2025</footer>
+
+	<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+	<script>
+	// filepath: d:\mpar projects\internshala\prototype\index.html (script)
+	(() => {
+		// Indian food suppliers
+		const SUPPLIERS = ['Amul Dairy','Mother Dairy','Britannia Industries','ITC Foods','Nestle India','Parle Products','Haldiram Foods','MTR Foods'];
+
+		// Local storage keys
+		const KEY = 'sqs_queries_v1';
+		const KEY_DRAFTS = 'sqs_drafts_v1';
+
+		// DOM refs
+		const screens = {list:document.getElementById('screen-list'), raise:document.getElementById('screen-raise'), status:document.getElementById('screen-status')};
+		const navList = document.getElementById('nav-list'), navRaise = document.getElementById('nav-raise'), navStatus = document.getElementById('nav-status');
+		const supplierListEl = document.getElementById('supplier-list');
+		const qsearch = document.getElementById('qsearch'), filterStatus = document.getElementById('filter-status');
+		const btnNew = document.getElementById('btn-new');
+		const raiseForm = document.getElementById('raise-form');
+		const saveDraftBtn = document.getElementById('save-draft');
+		const fieldSupplier = document.getElementById('field-supplier');
+		const fieldTitle = document.getElementById('field-title');
+		const fieldCategory = document.getElementById('field-category');
+		const fieldPriority = document.getElementById('field-priority');
+		const fieldDate = document.getElementById('field-date');
+		const fieldDesc = document.getElementById('field-desc');
+		const fieldFiles = document.getElementById('field-files');
+
+		const statusTitle = document.getElementById('status-title');
+		const statusPill = document.getElementById('status-pill');
+		const statusMeta = document.getElementById('status-meta');
+		const statusSla = document.getElementById('status-sla');
+		const slaProgressEl = document.querySelector('.sla-progress');
+
+		const queryListEl = document.getElementById('query-list');
+		const queriesFor = document.getElementById('queries-for');
+		const timelineContent = document.getElementById('timeline-content');
+		const timelineActions = document.getElementById('timeline-actions');
+		const replyText = document.getElementById('reply-text');
+		const sendReplyBtn = document.getElementById('send-reply');
+		const markResolvedBtn = document.getElementById('mark-resolved');
+		const openRaiseFromStatus = document.getElementById('open-raise-from-status');
+
+		const toastEl = document.getElementById('toast');
+
+		// DOM refs for all queries (FIX: these were missing)
+		const allQueriesEl = document.getElementById('all-queries');
+		const allQueryFilter = document.getElementById('all-query-filter');
+		const allQueryPriority = document.getElementById('all-query-priority');
+
+		let queries = [];
+		let drafts = [];
+		let selectedSupplier = null;
+		let selectedQueryId = null;
+
+		// Utility: load sample data if none (now with 3+ more queries)
+		function seedData(){
+			const existing = load();
+			if(existing && existing.length) { queries = existing; return; }
+			const now = Date.now();
+			queries = [
+				{
+					id: 'q-' + (now - 3000000),
+					supplier: 'Amul Dairy',
+					title: 'Lactose content verification',
+					category:'Ingredient',
+					priority:'Low',
+					responseBy: null,
+					description:'Please confirm lactose % in latest batch #L-992',
+					attachments: [],
+					status:'Resolved',
+					createdAt: now - 3000000,
+					timeline:[
+						{actor:'QA', text:'Raised query', time: new Date(now - 3000000).toISOString(), attachments:[]},
+						{actor:'Supplier', text:'Shared lab report', time: new Date(now - 2800000).toISOString(), attachments:['report.pdf']},
+						{actor:'QA', text:'Marked resolved', time: new Date(now - 2700000).toISOString(), attachments:[]}
+					]
+				},
+				{
+					id: 'q-' + (now - 2500000),
+					supplier: 'Britannia Industries',
+					title: 'FSSAI license renewal status',
+					category:'Certificate',
+					priority:'High',
+					responseBy: null,
+					description:'Urgent: please share renewed FSSAI certificate',
+					attachments: [],
+					status:'Pending',
+					createdAt: now - 2500000,
+					timeline:[{actor:'QA', text:'Raised query', time: new Date(now - 2500000).toISOString(), attachments:[]}
+					]
+				},
+				{
+					id: 'q-' + (now - 2000000),
+					supplier: 'ITC Foods',
+					title: 'Allergen confirmation for SKU123',
+					category:'Allergen',
+					priority:'Normal',
+					responseBy: null,
+					description:'Please confirm allergen list for SKU123',
+					attachments: [],
+					status:'Pending',
+					createdAt: now - 2000000,
+					timeline:[{actor:'QA', text:'Raised query', time: new Date(now - 2000000).toISOString(), attachments:[]}
+					]
+				},
+				{
+					id: 'q-' + (now - 1900000),
+					supplier: 'Nestle India',
+					title: 'Milk fat % confirmation',
+					category:'Ingredient',
+					priority:'Low',
+					responseBy: null,
+					description:'Confirm milk fat percentage for batch #M-44',
+					attachments: [],
+					status:'Pending',
+					createdAt: now - 1900000,
+					timeline:[{actor:'QA', text:'Raised query', time: new Date(now - 1900000).toISOString(), attachments:[]}
+					]
+				},
+				{
+					id: 'q-' + (now - 1000000),
+					supplier: 'Parle Products',
+					title: 'Certificate expiry check: ISO22000',
+					category:'Certificate',
+					priority:'High',
+					responseBy: null,
+					description:'Please share latest ISO22000 certificate.',
+					attachments: ['cert.pdf'],
+					status:'Resolved',
+					createdAt: now - 1000000,
+					timeline:[
+						{actor:'QA', text:'Raised query', time: new Date(now - 1000000).toISOString(), attachments:[]},
+						{actor:'Supplier', text:'Shared certificate', time: new Date(now - 900000).toISOString(), attachments:['cert.pdf']},
+						{actor:'QA', text:'Marked resolved', time: new Date(now - 800000).toISOString(), attachments:[]}
+					]
+				},
+				{
+					id: 'q-' + (now - 500000),
+					supplier: 'Haldiram Foods',
+					title: 'Ingredient safety for additive XYZ',
+					category:'Ingredient',
+					priority:'High',
+					responseBy: null,
+					description:'Confirm safety and supplier batch details',
+					attachments: [],
+					status:'Overdue',
+					createdAt: now - 500000,
+					timeline:[
+						{actor:'QA', text:'Raised query', time: new Date(now - 500000).toISOString(), attachments:[]},
+						{actor:'System', text:'Reminder sent (SLA)', time: new Date(now - 400000).toISOString(), attachments:[]}
+					]
+				},
+				{
+					id: 'q-' + (now - 300000),
+					supplier: 'MTR Foods',
+					title: 'Spice batch quality report',
+					category:'Other',
+					priority:'Normal',
+					responseBy: null,
+					description:'Request for QA report for batch SP-2024',
+					attachments: [],
+					status:'Pending',
+					createdAt: now - 300000,
+					timeline:[{actor:'QA', text:'Raised query', time: new Date(now - 300000).toISOString(), attachments:[]}
+					]
+				}
+			];
+			save();
+		}
+
+		// Storage helpers
+		function load(){
+			try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch(e){ return []; }
+		}
+		function save(){ localStorage.setItem(KEY, JSON.stringify(queries)); }
+		function loadDrafts(){
+			try { return JSON.parse(localStorage.getItem(KEY_DRAFTS) || '[]'); } catch(e){ return []; }
+		}
+		function saveDrafts(){ localStorage.setItem(KEY_DRAFTS, JSON.stringify(drafts)); }
+
+		// Toast
+		function showToast(msg, ms = 2500){
+			toastEl.textContent = msg;
+			toastEl.classList.add('show');
+			setTimeout(()=>toastEl.classList.remove('show'), ms);
+		}
+
+		// SVG icons (inline)
+		const icons = {
+			pending: '<svg fill="currentColor" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M8 4v4l3 2"/></svg>',
+			resolved: '<svg fill="currentColor" viewBox="0 0 16 16"><path d="M13.5 2.5L6 10l-3.5-3.5L1 8l5 5 9-9z"/></svg>',
+			overdue: '<svg fill="currentColor" viewBox="0 0 16 16"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 12.5A5.5 5.5 0 1113.5 8 5.5 5.5 0 008 13.5z"/><path d="M10.5 5.5L8 8 5.5 5.5 4 7l4 4 4-4z"/></svg>',
+			high: '<svg fill="currentColor" viewBox="0 0 16 16"><path d="M8 2l5 12H3z"/></svg>',
+			normal: '<svg fill="currentColor" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/></svg>',
+			low: '<svg fill="currentColor" viewBox="0 0 16 16"><path d="M3 8l5 5 5-5z"/></svg>'
+		};
+
+		// UI: switch screens
+		function setActive(key){
+			Object.values(screens).forEach(s=>s.classList.remove('active'));
+			screens[key].classList.add('active');
+			[navList,navRaise,navStatus].forEach(b=>b.setAttribute('aria-pressed','false'));
+			document.getElementById('nav-'+key).setAttribute('aria-pressed','true');
+		}
+		navList.addEventListener('click', ()=> setActive('list'));
+		navRaise.addEventListener('click', ()=> setActive('raise'));
+		navStatus.addEventListener('click', ()=> setActive('status'));
+		btnNew.addEventListener('click', ()=> { setActive('raise'); fieldTitle.focus(); });
+
+		// Render supplier list (search + filter)
+		function computeLatestStatusForSupplier(supplier){
+			const bySup = queries.filter(q=>q.supplier === supplier);
+			if(!bySup.length) return 'None';
+			// pick most recent by createdAt
+			bySup.sort((a,b)=>b.createdAt - a.createdAt);
+			return bySup[0].status || 'Pending';
+		}
+		function renderSupplierList(){
+			const term = (qsearch.value || '').trim().toLowerCase();
+			const filter = filterStatus.value;
+			supplierListEl.innerHTML = '';
+			for(const s of SUPPLIERS){
+				if(term && !s.toLowerCase().includes(term)) continue;
+				const latest = computeLatestStatusForSupplier(s);
+				if(filter !== 'all' && filter !== latest && latest !== 'None') continue;
+				const li = document.createElement('li');
+				li.className = 'row';
+				li.tabIndex = 0;
+				li.dataset.supplier = s;
+				const iconKey = latest==='Pending'?'pending':latest==='Resolved'?'resolved':latest==='Overdue'?'overdue':'';
+				li.innerHTML = `
+					<div class="row-left">
+						<strong>${s}</strong>
+						<div class="muted">${latest==='None'? 'No queries yet': latest + ' · Last query'}</div>
+					</div>
+					<div class="row-right row-actions">
+						<span class="pill ${latest==='Pending'?'pending':latest==='Resolved'?'resolved':latest==='Overdue'?'overdue':'blue'}">${iconKey && icons[iconKey] ? icons[iconKey] : ''}${latest==='None'?'—':latest}</span>
+						<button class="link small view-queries" title="View queries">View</button>
+					</div>
+				`;
+				// click row => open status for that supplier
+				li.addEventListener('click', (ev)=> {
+					// avoid double-handling if clicking inner button handled separately
+					if(ev.target && ev.target.classList.contains('view-queries')) return;
+					openSupplier(s);
+				});
+				li.querySelector('.view-queries').addEventListener('click', ()=> openSupplier(s));
+				supplierListEl.appendChild(li);
+			}
+			if(!supplierListEl.children.length){
+				const li = document.createElement('li');
+				li.className = 'row';
+				li.innerHTML = '<div class="row-left"><strong>No suppliers found</strong><div class="muted">Try a different search or filter</div></div>';
+				supplierListEl.appendChild(li);
+			}
+		}
+
+		// Open supplier in status screen and list their queries
+		function openSupplier(supplier){
+			selectedSupplier = supplier;
+			setActive('status');
+			queriesFor.textContent = supplier;
+			renderQueryListForSupplier(supplier);
+		}
+
+		// Render query list for selected supplier
+		function renderQueryListForSupplier(supplier){
+			queryListEl.innerHTML = '';
+			const list = queries.filter(q=>q.supplier===supplier).sort((a,b)=>b.createdAt - a.createdAt);
+			if(!list.length){
+				queryListEl.innerHTML = '<div class="muted">No queries for this supplier. You can raise a new one.</div>';
+				statusTitle.textContent = '—';
+				statusPill.style.display = 'none';
+				statusMeta.textContent = 'No query selected';
+				statusSla.style.display = 'none';
+				timelineContent.innerHTML = '<p class="muted">No query selected.</p>';
+				timelineActions.style.display = 'none';
+				return;
+			}
+			list.forEach(q=>{
+				const item = document.createElement('div');
+				item.className = 'query-item';
+				if(q.id === selectedQueryId) item.classList.add('active');
+				item.innerHTML = `<div><strong>${q.title}</strong><div class="muted">${q.category} · ${q.priority} · ${new Date(q.createdAt).toLocaleString()}</div></div>
+				<div><span class="pill ${q.status==='Pending'?'pending':q.status==='Resolved'?'resolved':'overdue'}">${q.status}</span></div>`;
+				item.addEventListener('click', ()=> {
+					selectedQueryId = q.id;
+					loadQueryIntoStatus(q.id);
+					// update active class
+					document.querySelectorAll('.query-item').forEach(el=>el.classList.remove('active'));
+					item.classList.add('active');
+				});
+				queryListEl.appendChild(item);
+			});
+			// auto-select first if none selected or different supplier
+			if(!selectedQueryId || list.every(q=>q.id !== selectedQueryId)){
+				selectedQueryId = list[0].id;
+			}
+			loadQueryIntoStatus(selectedQueryId);
+		}
+
+		// Load a query into the status/timeline view
+		function loadQueryIntoStatus(id){
+			const q = queries.find(x=>x.id===id);
+			if(!q) return;
+			statusTitle.textContent = q.title;
+			statusPill.style.display = 'inline-flex';
+			const sKey = q.status==='Pending'?'pending':q.status==='Resolved'?'resolved':'overdue';
+			statusPill.className = 'pill ' + sKey;
+			statusPill.innerHTML = icons[sKey] + q.status;
+			statusMeta.textContent = `Assigned to: QA Team · Priority: ${q.priority} · ${q.category}`;
+			// SLA progress: if responseBy exists, compute percent of time passed
+			if(q.responseBy){
+				statusSla.style.display = 'block';
+				const now = Date.now();
+				const created = q.createdAt || now;
+				const end = new Date(q.responseBy).getTime() || (created + 1000*60*60*24*3);
+				let pct = Math.max(0, Math.min(100, ((now - created) / (end - created))*100));
+				slaProgressEl.style.width = pct + '%';
+			} else {
+				statusSla.style.display = 'none';
+			}
+
+			// Render timeline
+			timelineContent.innerHTML = '';
+			q.timeline.forEach(entry=>{
+				const div = document.createElement('div');
+				div.className = 'entry';
+				const a = document.createElement('div');
+				a.className = 'dot' + (entry.actor === 'Supplier' ? ' supplier' : '');
+				const b = document.createElement('div');
+				b.className = 'body';
+				b.innerHTML = `<div class="meta">${new Date(entry.time).toLocaleString()} — ${entry.actor}</div>
+					<div class="content"><strong>${entry.text}</strong>${entry.attachments && entry.attachments.length ? '<div class="muted">Attachments: '+entry.attachments.join(', ')+'</div>':''}</div>`;
+				div.appendChild(a); div.appendChild(b);
+				timelineContent.appendChild(div);
+			});
+			// show actions for pending/overdue
+			if(q.status !== 'Resolved'){
+				timelineActions.style.display = 'block';
+			} else {
+				timelineActions.style.display = 'none';
+			}
+		}
+
+		// Render all queries list on the list page
+		function renderAllQueries(){
+			if(!allQueriesEl) return;
+			const statusFilter = allQueryFilter.value;
+			const prFilter = allQueryPriority.value;
+			const list = queries.slice().sort((a,b)=>b.createdAt - a.createdAt).filter(q=>{
+				if(statusFilter !== 'all' && q.status !== statusFilter) return false;
+				if(prFilter !== 'all' && q.priority !== prFilter) return false;
+				return true;
+			});
+			allQueriesEl.innerHTML = '';
+			if(!list.length){
+				allQueriesEl.innerHTML = '<div class="muted">No queries match this filter.</div>';
+				return;
+			}
+			list.forEach(q=>{
+				const row = document.createElement('div');
+				row.className = 'query-row';
+				const prKey = q.priority==='High'?'high':q.priority==='Low'?'low':'normal';
+				const sKey = q.status==='Pending'?'pending':q.status==='Resolved'?'resolved':'overdue';
+				row.innerHTML = `
+					<div style="min-width:0">
+						<div class="query-title">${escapeHtml(q.title)}</div>
+						<div class="query-meta">${q.supplier} · ${q.category} · ${new Date(q.createdAt).toLocaleString()}</div>
+					</div>
+					<div style="display:flex;gap:8px;align-items:center">
+						<span class="priority-badge priority-${prKey}">${icons[prKey]}${q.priority}</span>
+						<span class="pill ${sKey}">${icons[sKey]}${q.status}</span>
+					</div>
+				`;
+				row.addEventListener('click', ()=>{
+					// open supplier view and select query
+					selectedSupplier = q.supplier;
+					selectedQueryId = q.id;
+					openSupplier(q.supplier);
+				});
+				allQueriesEl.appendChild(row);
+			});
+		}
+
+		// small helper to escape HTML in titles/descriptions
+		function escapeHtml(str){ return String(str||'').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+
+		// wire filters
+		if(allQueryFilter) allQueryFilter.addEventListener('change', renderAllQueries);
+		if(allQueryPriority) allQueryPriority.addEventListener('change', renderAllQueries);
+
+		// Create a new query object and persist
+		function createQuery({supplier,title,category,priority,responseBy,description,attachments=[]}){
+			const id = 'q-' + Date.now();
+			const q = {
+				id, supplier, title, category, priority, responseBy, description, attachments,
+				status: 'Pending', createdAt: Date.now(),
+				timeline: [{actor:'QA', text:'Raised query', time:new Date().toISOString(), attachments:[]}
+				]
+			};
+			queries.push(q);
+			save();
+			renderAllQueries();
+			renderSupplierList();
+			return q;
+		}
+
+		// Form events: Save draft
+		saveDraftBtn.addEventListener('click', ()=>{
+			const draft = {
+				id: 'd-' + Date.now(),
+				supplier: fieldSupplier.value,
+				title: fieldTitle.value,
+				category: fieldCategory.value,
+				priority: fieldPriority.value,
+				responseBy: fieldDate.value || null,
+				description: fieldDesc.value,
+				attachments: Array.from(fieldFiles.files || []).map(f=>f.name),
+				createdAt: Date.now()
+			};
+			drafts = loadDrafts();
+			drafts.push(draft);
+			localStorage.setItem(KEY_DRAFTS, JSON.stringify(drafts));
+			showToast('💾 Draft saved');
+			// keep the all-queries view fresh (drafts not displayed but keep UX consistent)
+			renderAllQueries();
+		});
+
+		// Send query
+		raiseForm.addEventListener('submit', (e)=>{
+			e.preventDefault();
+			const supplier = fieldSupplier.value;
+			const title = fieldTitle.value.trim();
+			if(!title){ showToast('⚠️ Please add a title'); fieldTitle.focus(); return; }
+			const q = createQuery({
+				supplier,
+				title,
+				category: fieldCategory.value,
+				priority: fieldPriority.value,
+				responseBy: fieldDate.value || null,
+				description: fieldDesc.value,
+				attachments: Array.from(fieldFiles.files || []).map(f=>f.name)
+			});
+			showToast('✅ Query sent');
+			// clear form (except supplier)
+			fieldTitle.value = ''; fieldDesc.value = ''; fieldFiles.value = '';
+			fieldDate.value = '';
+			// navigate to status with supplier selected and show the new query
+			selectedSupplier = supplier;
+			selectedQueryId = q.id;
+			openSupplier(supplier);
+			renderAllQueries();
+		});
+
+		// Reply action
+		sendReplyBtn.addEventListener('click', ()=>{
+			const text = replyText.value.trim();
+			if(!text) { showToast('⚠️ Enter reply text'); return; }
+			const q = queries.find(x=>x.id === selectedQueryId);
+			if(!q){ showToast('⚠️ No query selected'); return; }
+			q.timeline.push({actor:'QA', text, time:new Date().toISOString(), attachments:[]});
+			save();
+			loadQueryIntoStatus(q.id);
+			replyText.value = '';
+			showToast('✅ Reply added');
+			renderAllQueries();
+			// refresh sidebar query list so pills update
+			if(selectedSupplier) renderQueryListForSupplier(selectedSupplier);
+		});
+
+		// Mark resolved
+		markResolvedBtn.addEventListener('click', ()=>{
+			const q = queries.find(x=>x.id === selectedQueryId);
+			if(!q){ showToast('⚠️ No query selected'); return; }
+			q.status = 'Resolved';
+			q.timeline.push({actor:'QA', text:'Marked resolved', time:new Date().toISOString(), attachments:[]});
+			save();
+			loadQueryIntoStatus(q.id);
+			renderSupplierList();
+			showToast('✅ Marked resolved');
+			renderAllQueries();
+			// refresh sidebar query list so the resolved pill updates immediately
+			if(selectedSupplier) renderQueryListForSupplier(selectedSupplier);
+		});
+
+		// Open raise from status
+		openRaiseFromStatus.addEventListener('click', ()=>{
+			setActive('raise');
+			if(selectedSupplier) fieldSupplier.value = selectedSupplier;
+		});
+
+		// Search & filter handlers
+		qsearch.addEventListener('input', ()=> renderSupplierList());
+		filterStatus.addEventListener('change', ()=> renderSupplierList());
+
+		// keyboard enter on supplier row (accessibility)
+		supplierListEl.addEventListener('keydown', (e)=>{
+			if(e.key === 'Enter' && e.target && e.target.dataset && e.target.dataset.supplier){
+				openSupplier(e.target.dataset.supplier);
+			}
+		});
+
+		// init
+		function init(){
+			queries = load();
+			if(!queries || !queries.length) seedData();
+			drafts = loadDrafts();
+			// populate supplier select in raise form (keeps in sync with SUPPLIERS)
+			fieldSupplier.innerHTML = SUPPLIERS.map(s=>`<option>${s}</option>`).join('');
+			renderSupplierList();
+			renderAllQueries();
+		}
+		init();
+
+		// Expose save on unload
+		window.addEventListener('beforeunload', ()=> save());
+
+	})();
+	</script>
+</body>
+</html>
